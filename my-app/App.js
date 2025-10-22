@@ -9,54 +9,103 @@ import {
   ScrollView,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function App() {
   const [usuario, setUsuario] = useState('');
   const [cpf, setCpf] = useState('');
-  const [sintomas, setSintomas] = useState('');
+  const [sintomasSelecionados, setSintomasSelecionados] = useState([]);
   const [foto, setFoto] = useState(null);
+  const [modalVisivel, setModalVisivel] = useState(false);
+
+  // Lista de sintomas pré-definidos
+  const listaSintomas = [
+    { id : '1', nome: 'Febre', icone: '🌡'},
+    { id : '2', nome: 'Dor de Cabeça', icone: '🤕'},
+    { id : '3', nome: 'Tontura', icone: '💫'},
+    { id : '4', nome: 'Falta de Ar', icone: '😮‍💨'},
+    { id : '5', nome: 'Náusea', icone: '🤢'},
+    { id : '6', nome: 'Dor no Corpo', icone: '😣'},
+    { id : '7', nome: 'Fraqueza', icone: '🙍‍♂'},
+    { id : '8', nome: 'Confusão Mental', icone: '🧠'},
+    { id : '9', nome: 'Palpitações', icone: '💓'},
+    { id : '10', nome: 'Suor Excessivo', icone: '😰'},
+    { id : '11', nome: 'Calafrios', icone: '🥶'},
+    { id : '12', nome: 'Dormência', icone: '🫨'},
+    { id : '13', nome: 'Dor no peito', icone: '🫀'},
+    { id : '14', nome: 'Visão turva', icone: '😵‍💫'},
+    { id : '15', nome: 'Falta de visão', icone: '😵'},
+    { id : '16', nome: 'Dificuldade em falar', icone: '😶'},
+    { id : '17', nome: 'Perda de sentido', icone: '🫥'},
+  ];
+
+  // Função simplificada para selecionar/deselecionar sintomas
+  const toggleSintoma = (sintoma) => {
+    // Verifica se o sintoma já está selecionado
+    const index = sintomasSelecionados.findIndex(s => s.id === sintoma.id);
+    
+    if (index > -1) {
+      // Remove o sintoma se já estiver selecionado
+      const novosSintomas = [...sintomasSelecionados];
+      novosSintomas.splice(index, 1);
+      setSintomasSelecionados(novosSintomas);
+    } else {
+      // Adiciona o sintoma se não estiver selecionado
+      setSintomasSelecionados([...sintomasSelecionados, sintoma]);
+    }
+  };
 
   // Função para selecionar foto da galeria
   const selecionarFoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à sua galeria!');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permissão necessária', 'Precisamos de acesso à sua galeria!');
+        return;
+      }
 
-    const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!resultado.canceled) {
-      setFoto(resultado.assets[0].uri);
+      if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+        setFoto(resultado.assets[0].uri);
+        console.log("Foto selecionada:", resultado.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar foto:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a foto');
     }
   };
 
   // Função para tirar foto com a câmera
   const tirarFoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à sua câmera!');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permissão necessária', 'Precisamos de acesso à sua câmera!');
+        return;
+      }
 
-    const resultado = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+      const resultado = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!resultado.canceled) {
-      setFoto(resultado.assets[0].uri);
+      if (!resultado.canceled && resultado.assets && resultado.assets[0]) {
+        setFoto(resultado.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao tirar foto:', error);
+      Alert.alert('Erro', 'Não foi possível tirar a foto');
     }
   };
 
@@ -80,7 +129,7 @@ export default function App() {
 
   // Função para enviar formulário
   const enviarFormulario = () => {
-    if (!usuario || !cpf || !sintomas) {
+    if (!usuario || !cpf || sintomasSelecionados.length === 0) {
       Alert.alert('Atenção', 'Preencha todos os campos obrigatórios!');
       return;
     }
@@ -88,7 +137,7 @@ export default function App() {
     const dados = {
       usuario,
       cpf,
-      sintomas,
+      sintomas: sintomasSelecionados.map(s => s.nome).join(', '),
       foto: foto || 'Nenhuma foto selecionada'
     };
 
@@ -98,8 +147,62 @@ export default function App() {
       [{ text: 'OK' }]
     );
 
-    // Aqui você pode enviar os dados para sua API
     console.log('Dados do formulário:', dados);
+  };
+
+  // Função para verificar se um sintoma está selecionado
+  const isSintomaSelecionado = (sintomaId) => {
+    return sintomasSelecionados.some(s => s.id === sintomaId);
+  };
+
+  // Função para renderizar a lista de sintomas em grid
+  const renderSintomasGrid = () => {
+    const rows = [];
+    for (let i = 0; i < listaSintomas.length; i += 2) {
+      const sintoma1 = listaSintomas[i];
+      const sintoma2 = listaSintomas[i + 1];
+      
+      rows.push(
+        <View key={i} style={styles.sintomasRow}>
+          {/* Primeiro sintoma da linha */}
+          <TouchableOpacity
+            style={[
+              styles.itemSintoma,
+              isSintomaSelecionado(sintoma1.id) && styles.itemSintomaSelecionado
+            ]}
+            onPress={() => toggleSintoma(sintoma1)}
+          >
+            <Text style={styles.iconeSintoma}>{sintoma1.icone}</Text>
+            <Text style={[
+              styles.nomeSintoma,
+              isSintomaSelecionado(sintoma1.id) && styles.nomeSintomaSelecionado
+            ]}>
+              {sintoma1.nome}
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Segundo sintoma da linha (se existir) */}
+          {sintoma2 && (
+            <TouchableOpacity
+              style={[
+                styles.itemSintoma,
+                isSintomaSelecionado(sintoma2.id) && styles.itemSintomaSelecionado
+              ]}
+              onPress={() => toggleSintoma(sintoma2)}
+            >
+              <Text style={styles.iconeSintoma}>{sintoma2.icone}</Text>
+              <Text style={[
+                styles.nomeSintoma,
+                isSintomaSelecionado(sintoma2.id) && styles.nomeSintomaSelecionado
+              ]}>
+                {sintoma2.nome}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+    return rows;
   };
 
   return (
@@ -162,21 +265,81 @@ export default function App() {
         {/* Campo de Sintomas */}
         <View style={styles.campoContainer}>
           <Text style={styles.label}>Sintomas *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Descreva os sintomas observados..."
-            value={sintomas}
-            onChangeText={setSintomas}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
+          
+          {/* Botão para abrir o modal de sintomas */}
+          <TouchableOpacity 
+            style={styles.botaoSelecionarSintomas}
+            onPress={() => setModalVisivel(true)}
+          >
+            <Text style={styles.botaoSelecionarTexto}>
+              {sintomasSelecionados.length > 0 
+                ? `${sintomasSelecionados.length} sintoma(s) selecionado(s)` 
+                : 'Selecionar Sintomas'
+              }
+            </Text>
+          </TouchableOpacity>
+
+          {/* Lista de sintomas selecionados */}
+          {sintomasSelecionados.length > 0 && (
+            <View style={styles.sintomasSelecionadosContainer}>
+              <Text style={styles.sintomasSelecionadosTitulo}>
+                Sintomas selecionados:
+              </Text>
+              <View style={styles.sintomasTags}>
+                {sintomasSelecionados.map(sintoma => (
+                  <View key={sintoma.id} style={styles.tagSintoma}>
+                    <Text style={styles.tagTexto}>
+                      {sintoma.icone} {sintoma.nome}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Botão de Enviar */}
         <TouchableOpacity style={styles.botaoEnviar} onPress={enviarFormulario}>
           <Text style={styles.botaoEnviarTexto}>Salvar Cadastro</Text>
         </TouchableOpacity>
+
+        {/* Modal de Seleção de Sintomas */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisivel}
+          onRequestClose={() => setModalVisivel(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalConteudo}>
+              <View style={styles.modalCabecalho}>
+                <Text style={styles.modalTitulo}>Selecione os Sintomas</Text>
+                <TouchableOpacity 
+                  style={styles.botaoFecharModal}
+                  onPress={() => setModalVisivel(false)}
+                >
+                  <Text style={styles.botaoFecharTexto}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                style={styles.listaSintomasContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                {renderSintomasGrid()}
+              </ScrollView>
+
+              <TouchableOpacity 
+                style={styles.botaoConfirmar}
+                onPress={() => setModalVisivel(false)}
+              >
+                <Text style={styles.botaoConfirmarTexto}>
+                  Confirmar ({sintomasSelecionados.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -222,10 +385,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     fontSize: 16,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
+  // Estilos para Foto
   fotoContainer: {
     alignItems: 'center',
     marginBottom: 15,
@@ -269,6 +429,125 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Estilos para Sintomas
+  botaoSelecionarSintomas: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  botaoSelecionarTexto: {
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+  sintomasSelecionadosContainer: {
+    marginTop: 10,
+  },
+  sintomasSelecionadosTitulo: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 5,
+  },
+  sintomasTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  tagSintoma: {
+    backgroundColor: '#3498db',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    margin: 3,
+  },
+  tagTexto: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Estilos do Modal
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  modalConteudo: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxHeight: '80%',
+  },
+  modalCabecalho: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitulo: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  botaoFecharModal: {
+    padding: 5,
+  },
+  botaoFecharTexto: {
+    fontSize: 20,
+    color: '#7f8c8d',
+  },
+  listaSintomasContainer: {
+    maxHeight: 400,
+  },
+  sintomasRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  itemSintoma: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  itemSintomaSelecionado: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#3498db',
+  },
+  iconeSintoma: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  nomeSintoma: {
+    fontSize: 14,
+    color: '#495057',
+    fontWeight: '500',
+  },
+  nomeSintomaSelecionado: {
+    color: '#3498db',
+    fontWeight: 'bold',
+  },
+  botaoConfirmar: {
+    backgroundColor: '#27ae60',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  botaoConfirmarTexto: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Botão Enviar
   botaoEnviar: {
     backgroundColor: '#27ae60',
     padding: 18,
