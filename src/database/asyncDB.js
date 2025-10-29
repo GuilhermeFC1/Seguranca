@@ -27,7 +27,7 @@ export const initDatabase = async () => {
 };
 
 // Funções para a tabela idosos:
-export const createIdoso = async (nome, idade, telefone) => {
+export const createIdoso = async (nome, idade, telefone, cpf = '') => {
     try {
         const idosoData = await AsyncStorage.getItem(IDOSO_TABLE);
         const registros = idosoData ? JSON.parse(idosoData) : [];
@@ -39,6 +39,7 @@ export const createIdoso = async (nome, idade, telefone) => {
             nome,
             idade,
             telefone,
+            cpf,
             created_at: new Date().toISOString()
         };
 
@@ -109,7 +110,7 @@ export const getIdosoById = async (id) => {
 export const updateIdoso = async (id, nome, idade, telefone) => {
     try {
         const idosoData = await AsyncStorage.getItem(IDOSO_TABLE);
-        const registros = talData ? JSON.parse(idosoData) : [];
+        const registros = idosoData ? JSON.parse(idosoData) : []; // CORRIGIDO: era talData
         const index = registros.findIndex(r => r.id === id);
 
         if (index !== -1) {
@@ -220,6 +221,7 @@ export const createUsuariofavorito = async (nome, idade, telefone) => {
         };
     }
 };
+
 export const getAllUsuariofavorito = async () => {
   try {
     const usuariofavoritoData = await AsyncStorage.getItem(USUARIOFAVORITO_TABLE);
