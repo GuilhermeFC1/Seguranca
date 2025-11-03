@@ -9,7 +9,7 @@ import CadastroScreen from './src/screens/CadastroScreen';
 import EmergenciaScreen from './src/screens/EmergenciaScreen';
 
 // Importações do banco de dados
-import { initDatabase, testDatabase } from './src/database/asyncDB';
+import { debugDatabase, initDatabase, testDatabase } from './src/database/asyncDB';
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +30,7 @@ export default function App() {
       if (teste) {
         setDbInitialized(true);
         console.log('Banco inicializado com sucesso!');
+        await debugDatabase();
       } else {
         Alert.alert('Erro', 'Falha no teste do banco de dados');
       }

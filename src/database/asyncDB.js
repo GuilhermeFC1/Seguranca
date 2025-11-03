@@ -242,6 +242,90 @@ export const getAllUsuariofavorito = async () => {
   }
 };
 
+export const viewDatabase = async () => {
+    try {
+        const idosoData = await AsyncStorage.getItem(IDOSO_TABLE);
+        const usuariofavoritoData = await AsyncStorage.getItem(USUARIOFAVORITO_TABLE);
+
+        const idoso = idosoData ? JSON.parse(idosoData) : [];
+        const usuariofavorito = usuariofavoritoData ? JSON.parse(usuariofavoritoData) : [];
+
+        console.log('=== DADOS DA TABELA IDOSO ===');
+        console.table(idoso);
+        console.log('=== DADOS DA TABELA USUARIO FAVORITO ===');
+        console.table(usuariofavorito);
+
+        return {
+            idoso,
+            usuariofavorito
+        };
+    } catch (error) {
+        console.error('Erro ao visualizar banco de dados:', error);
+        return { idoso: [], usuariofavorito: [] };
+    }
+};
+
+export const debugDatabase = async () => {
+    try {
+        const idosoData = await AsyncStorage.getItem(IDOSO_TABLE);
+        const usuariofavoritoData = await AsyncStorage.getItem(USUARIOFAVORITO_TABLE);
+
+        let idoso = [];
+        let usuariofavorito = [];
+        
+        try {
+            idoso = idosoData ? JSON.parse(idosoData) : [];
+            if (!Array.isArray(idoso)) {
+                console.warn('Dados de idosos não são um array, convertendo...');
+                idoso = [];
+            }
+        } catch (parseError) {
+            console.error('Erro ao fazer parse dos idosos:', parseError);
+            idoso = [];
+        }
+
+        try{
+            usuariofavorito = usuariofavoritoData ? JSON.parse(usuariofavoritoData) : [];
+            if (!Array.isArray(usuariofavorito)) {
+                console.warn('Dados de favoritos não são um array, convertendo...');
+                usuariofavorito = [];
+            }
+        } catch (parseError) {
+            console.error('Erro ao fazer parse dos favoritos:', parseError);
+        }
+        console.log('DEBUG DO BANCO DE DADOS');
+        console.log('Idosos: ${idoso.length} registros');
+        
+        if(Array.isArray(idoso)) {
+            idoso.forEach(idoso => {
+                console.log('ID: ${idoso.id} | Nome: ${idoso.nome} | Idade: ${idoso.idade}');
+            });
+        } else {
+            console.log('Dados de idosos não estão em formato de array');
+        }
+
+        console.log('Usuários Favoritos: ${usuariofavorito.length} registros');
+        
+        if(Array.isArray(usuariofavorito)) {
+            usuariofavorito.forEach(usuariofavorito => {
+                console.log('ID: ${usuariofavorito.id} | Nome: ${usuariofavorito.nome} | Idade: ${usuariofavorito.idade}');
+            });
+        } else {
+            console.log('Dados de Usuário Favorito não estão em formato de array');
+        }
+        return {
+            totalIdoso: Array.isArray(idoso) ? idoso.length : 0,
+            totalUsuarioFavorito: Array.isArray(usuariofavorito) ? usuariofavorito.length : 0,
+            idoso: Array.isArray(idoso) ? idoso : [],
+            usuariofavorito: Array.isArray(usuariofavorito) ? usuariofavorito : []
+        };    
+    } catch (error) {
+        console.error('Erro no debug:', error);
+        return { totalIdoso: 0, totalUsuarioFavorito: 0, idoso: [], usuariofavorito: [] };
+    }
+};
+
+
 // Teste do banco de dados
 export const testDatabase = async () => {
   try {
@@ -266,3 +350,4 @@ export const clearAllData = async () => {
     return { success: false, error: error.message };
   }
 };
+
