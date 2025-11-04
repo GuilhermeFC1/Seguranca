@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-  Linking
+  Linking,
+  Platform
 } from 'react-native';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { getAllIdoso, getAllUsuariofavorito } from '../database/asyncDB';
@@ -51,11 +52,11 @@ const EmergenciaScreen = ({ navigation }) => {
       const resultFavorito = await getAllUsuariofavorito();
 
       if (resultIdoso.success && resultIdoso.data.length > 0) {
-        setIdoso(resultIdoso.data[0]); // Pega o primeiro idoso cadastrado
+        setIdoso(resultIdoso.data[0]);
       }
 
       if (resultFavorito.success && resultFavorito.data.length > 0) {
-        setUsuarioFavorito(resultFavorito.data[0]); // Pega o primeiro favorito
+        setUsuarioFavorito(resultFavorito.data[0]);
       }
 
       if (!resultIdoso.data.length || !resultFavorito.data.length) {
@@ -146,7 +147,7 @@ const EmergenciaScreen = ({ navigation }) => {
       setLoadingMessage('Abrindo SMS...');
 
       const telefone = usuarioFavorito.telefone.replace(/\D/g, '');
-      const url = `sms:${telefone}?body=${encodeURIComponent(mensagem)}`;
+      const url = `sms:${telefone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(mensagem)}`;
       
       const supported = await Linking.canOpenURL(url);
       
@@ -170,13 +171,30 @@ const EmergenciaScreen = ({ navigation }) => {
       setLoadingMessage('Abrindo WhatsApp...');
 
       const telefone = usuarioFavorito.telefone.replace(/\D/g, '');
-      const url = `whatsapp://send?phone=55${telefone}&text=${encodeURIComponent(mensagem)}`;
+      
+      let url;
+      if (Platform.OS === 'ios') {
+        url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+      } else {
+        url = `whatsapp://send?phone=55${telefone}&text=${encodeURIComponent(mensagem)}`;
+      }
       
       const supported = await Linking.canOpenURL(url);
       
       if (supported) {
         await Linking.openURL(url);
       } else {
+        // Fallback para Android: tenta o formato HTTPS
+        if (Platform.OS === 'android') {
+          const fallbackUrl = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+          const fallbackSupported = await Linking.canOpenURL(fallbackUrl);
+          
+          if (fallbackSupported) {
+            await Linking.openURL(fallbackUrl);
+            return;
+          }
+        }
+        
         Alert.alert(
           'WhatsApp não encontrado',
           'Deseja tentar enviar por SMS?',
@@ -188,6 +206,19 @@ const EmergenciaScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Erro ao abrir WhatsApp:', error);
+      
+      // Tenta fallback para formato HTTPS se ainda não tentou
+      if (Platform.OS === 'android') {
+        try {
+          const telefone = usuarioFavorito.telefone.replace(/\D/g, '');
+          const fallbackUrl = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+          await Linking.openURL(fallbackUrl);
+          return;
+        } catch (fallbackError) {
+          console.error('Erro no fallback:', fallbackError);
+        }
+      }
+      
       Alert.alert(
         'Erro',
         'Não foi possível abrir o WhatsApp. Deseja tentar por SMS?',

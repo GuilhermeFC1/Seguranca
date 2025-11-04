@@ -110,7 +110,7 @@ export const getIdosoById = async (id) => {
 export const updateIdoso = async (id, nome, idade, telefone) => {
     try {
         const idosoData = await AsyncStorage.getItem(IDOSO_TABLE);
-        const registros = idosoData ? JSON.parse(idosoData) : []; // CORRIGIDO: era talData
+        const registros = idosoData ? JSON.parse(idosoData) : []; 
         const index = registros.findIndex(r => r.id === id);
 
         if (index !== -1) {
