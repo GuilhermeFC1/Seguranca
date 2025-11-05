@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Importar telas
+import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import CadastroScreen from './src/screens/CadastroScreen';
 import EmergenciaScreen from './src/screens/EmergenciaScreen';
@@ -62,7 +63,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="Login"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#3498db',
@@ -74,9 +75,20 @@ export default function App() {
         }}
       >
         <Stack.Screen 
+          name="Login" 
+          component={LoginScreen}
+          options={{ 
+            title: 'Saúde do Idoso',
+            headerShown: false 
+          }}
+        />
+        <Stack.Screen 
           name="Home" 
           component={HomeScreen}
-          options={{ title: 'Saúde do Idoso' }}
+          options={{ 
+            title: 'Saúde do Idoso',
+            headerLeft: () => null, 
+          }}
         />
         <Stack.Screen 
           name="Cadastro" 
