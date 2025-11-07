@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "my-app",
-    "slug": "my-app",
+    "name": "Saúde do Idoso",
+    "slug": "saude-do-idoso",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,20 +13,42 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saudedoidoso.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para enviar em alertas de emergência e ajudar os socorristas e seu(s) contato(s) favorito(s) a encontrarem você rapidamente.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Sua localização será usada apenas durante emergências para que o contato de emergência saiba exatamente onde você está."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.saudedoidoso.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "INTERNET"
+      ],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que o app Saúde do Idoso use sua localização para enviar coordenadas em emergências.",
+          "locationAlwaysPermission": "Permitir que o app Saúde do Idoso acesse sua localização para alertas de emergência.",
+          "locationWhenInUsePermission": "Permitir que o app Saúde do Idoso use sua localização durante emergências.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
     ]
   }
 }

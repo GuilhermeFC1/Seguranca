@@ -7,8 +7,10 @@ import {
   Alert,
   StyleSheet,
   Linking,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
+import * as Location from 'expo-location';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { getAllIdoso, getAllUsuariofavorito } from '../database/asyncDB';
 
@@ -18,6 +20,9 @@ const EmergenciaScreen = ({ navigation }) => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [idoso, setIdoso] = useState(null);
   const [usuarioFavorito, setUsuarioFavorito] = useState(null);
+  const [localizacao, setLocalizacao] = useState(null);
+  const [carregandoLocalizacao, setCarregandoLocalizacao] = useState(false);
+  const [permissaoLocalizacao, setPermissaoLocalizacao] = useState(null);
 
   const listaSintomas = [
     { id: '1', nome: 'Febre', icone: '🌡️' },
@@ -41,7 +46,55 @@ const EmergenciaScreen = ({ navigation }) => {
 
   useEffect(() => {
     carregarDados();
+    solicitarPermissaoLocalizacao();
   }, []);
+
+  // Solicitar permissão de localização
+  const solicitarPermissaoLocalizacao = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setPermissaoLocalizacao(status === 'granted');
+      
+      if (status === 'granted') {
+        obterLocalizacaoAtual();
+      } else {
+        Alert.alert(
+          'Permissão de Localização',
+          'A localização ajuda os socorristas a encontrarem você mais rápido. Você pode ativar nas configurações do dispositivo.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar permissão de localização:', error);
+      setPermissaoLocalizacao(false);
+    }
+  };
+
+  // Obter localização atual
+  const obterLocalizacaoAtual = async () => {
+    try {
+      setCarregandoLocalizacao(true);
+      
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+        distanceInterval: 0,
+      });
+
+      setLocalizacao({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        accuracy: location.coords.accuracy,
+        timestamp: location.timestamp
+      });
+
+    } catch (error) {
+      console.error('Erro ao obter localização:', error);
+      setLocalizacao(null);
+    } finally {
+      setCarregandoLocalizacao(false);
+    }
+  };
 
   const carregarDados = async () => {
     try {
@@ -97,6 +150,20 @@ const EmergenciaScreen = ({ navigation }) => {
     return sintomasSelecionados.some(s => s.id === sintomaId);
   };
 
+  // Formatar endereço da localização
+  const formatarLocalizacao = (loc) => {
+    if (!loc) return 'Localização não disponível';
+    
+    const googleMapsUrl = `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`;
+    const coordenadas = `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`;
+    const precisao = loc.accuracy ? `±${Math.round(loc.accuracy)}m` : '';
+    
+    return {
+      texto: `📍 ${coordenadas} ${precisao}`,
+      url: googleMapsUrl
+    };
+  };
+
   const enviarAlerta = async () => {
     if (!idoso || !usuarioFavorito) {
       Alert.alert('Erro', 'Dados de cadastro não encontrados');
@@ -108,15 +175,27 @@ const EmergenciaScreen = ({ navigation }) => {
       return;
     }
 
+    // Atualizar localização antes de enviar
+    if (permissaoLocalizacao) {
+      setLoadingMessage('Obtendo localização...');
+      setLoading(true);
+      await obterLocalizacaoAtual();
+      setLoading(false);
+    }
+
     const sintomasTexto = sintomasSelecionados
       .map(s => `${s.icone} ${s.nome}`)
       .join('\n');
 
+    const locInfo = formatarLocalizacao(localizacao);
+    
     const mensagem = 
       `🚨 *ALERTA DE EMERGÊNCIA* 🚨\n\n` +
-      `Paciente: ${idoso.nome}\n` +
-      `Telefone: ${idoso.telefone}\n\n` +
+      `👴 Paciente: ${idoso.nome}\n` +
+      `📞 Telefone: ${idoso.telefone}\n\n` +
       `*SINTOMAS RELATADOS:*\n${sintomasTexto}\n\n` +
+      `*LOCALIZAÇÃO:*\n${locInfo.texto}\n` +
+      `🗺️ Mapa: ${locInfo.url}\n\n` +
       `⏰ Horário: ${new Date().toLocaleString('pt-BR')}\n\n` +
       `_Mensagem enviada automaticamente pelo app Saúde do Idoso_`;
 
@@ -125,7 +204,8 @@ const EmergenciaScreen = ({ navigation }) => {
       `Você está prestes a enviar um alerta de emergência para:\n\n` +
       `${usuarioFavorito.nome}\n` +
       `${usuarioFavorito.telefone}\n\n` +
-      `Com os seguintes sintomas:\n${sintomasSelecionados.map(s => s.nome).join(', ')}`,
+      `Sintomas: ${sintomasSelecionados.map(s => s.nome).join(', ')}\n` +
+      `${localizacao ? '✅ Localização incluída' : '⚠️ Sem localização'}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -184,7 +264,6 @@ const EmergenciaScreen = ({ navigation }) => {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        // Fallback para Android: tenta o formato HTTPS
         if (Platform.OS === 'android') {
           const fallbackUrl = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
           const fallbackSupported = await Linking.canOpenURL(fallbackUrl);
@@ -207,7 +286,6 @@ const EmergenciaScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Erro ao abrir WhatsApp:', error);
       
-      // Tenta fallback para formato HTTPS se ainda não tentou
       if (Platform.OS === 'android') {
         try {
           const telefone = usuarioFavorito.telefone.replace(/\D/g, '');
@@ -261,6 +339,65 @@ const EmergenciaScreen = ({ navigation }) => {
             <Text style={styles.infoText}>{usuarioFavorito.telefone}</Text>
           </View>
         )}
+
+        {/* Card de Localização */}
+        <View style={[styles.infoCard, styles.locationCard]}>
+          <View style={styles.locationHeader}>
+            <Text style={styles.infoTitle}>📍 Localização</Text>
+            {carregandoLocalizacao && (
+              <ActivityIndicator size="small" color="#3498db" />
+            )}
+          </View>
+          
+          {localizacao ? (
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationText}>
+                ✅ Localização capturada
+              </Text>
+              <Text style={styles.locationCoords}>
+                {localizacao.latitude.toFixed(6)}, {localizacao.longitude.toFixed(6)}
+              </Text>
+              {localizacao.accuracy && (
+                <Text style={styles.locationAccuracy}>
+                  Precisão: ±{Math.round(localizacao.accuracy)}m
+                </Text>
+              )}
+              <TouchableOpacity 
+                style={styles.btnAtualizarLocation}
+                onPress={obterLocalizacaoAtual}
+              >
+                <Text style={styles.btnAtualizarText}>🔄 Atualizar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.locationInfo}>
+              {permissaoLocalizacao === false ? (
+                <>
+                  <Text style={styles.locationWarning}>
+                    ⚠️ Permissão de localização negada
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.btnPermissao}
+                    onPress={solicitarPermissaoLocalizacao}
+                  >
+                    <Text style={styles.btnPermissaoText}>
+                      Solicitar Permissão
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.locationWarning}>
+                    ⚠️ Localização não disponível
+                  </Text>
+                  <Text style={styles.locationHelper}>
+                    A localização será capturada ao enviar o alerta
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Lista de sintomas */}
         <View style={styles.sintomasContainer}>
@@ -369,6 +506,15 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#3498db',
   },
+  locationCard: {
+    borderLeftColor: '#27ae60',
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   infoTitle: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -378,6 +524,62 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 16,
     color: '#2c3e50',
+  },
+  locationInfo: {
+    marginTop: 5,
+  },
+  locationText: {
+    fontSize: 15,
+    color: '#27ae60',
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  locationCoords: {
+    fontSize: 13,
+    color: '#555',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginBottom: 3,
+  },
+  locationAccuracy: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 10,
+  },
+  locationWarning: {
+    fontSize: 14,
+    color: '#e67e22',
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  locationHelper: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontStyle: 'italic',
+  },
+  btnAtualizarLocation: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  btnAtualizarText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  btnPermissao: {
+    backgroundColor: '#e67e22',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 5,
+  },
+  btnPermissaoText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
   },
   sintomasContainer: {
     marginTop: 10,
