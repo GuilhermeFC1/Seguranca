@@ -19,7 +19,7 @@ const EmergenciaScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [idoso, setIdoso] = useState(null);
-  const [usuarioFavorito, setUsuarioFavorito] = useState(null);
+  const [usuariosFavoritos, setUsuariosFavoritos] = useState([]);
   const [localizacao, setLocalizacao] = useState(null);
   const [carregandoLocalizacao, setCarregandoLocalizacao] = useState(false);
   const [permissaoLocalizacao, setPermissaoLocalizacao] = useState(null);
@@ -49,7 +49,6 @@ const EmergenciaScreen = ({ navigation }) => {
     solicitarPermissaoLocalizacao();
   }, []);
 
-  // Solicitar permissão de localização
   const solicitarPermissaoLocalizacao = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -70,7 +69,6 @@ const EmergenciaScreen = ({ navigation }) => {
     }
   };
 
-  // Obter localização atual
   const obterLocalizacaoAtual = async () => {
     try {
       setCarregandoLocalizacao(true);
@@ -109,7 +107,7 @@ const EmergenciaScreen = ({ navigation }) => {
       }
 
       if (resultFavorito.success && resultFavorito.data.length > 0) {
-        setUsuarioFavorito(resultFavorito.data[0]);
+        setUsuariosFavoritos(resultFavorito.data);
       }
 
       if (!resultIdoso.data.length || !resultFavorito.data.length) {
@@ -150,7 +148,6 @@ const EmergenciaScreen = ({ navigation }) => {
     return sintomasSelecionados.some(s => s.id === sintomaId);
   };
 
-  // Formatar endereço da localização
   const formatarLocalizacao = (loc) => {
     if (!loc) return 'Localização não disponível';
     
@@ -164,8 +161,8 @@ const EmergenciaScreen = ({ navigation }) => {
     };
   };
 
-  const enviarAlerta = async () => {
-    if (!idoso || !usuarioFavorito) {
+  const selecionarContatoParaEnvio = () => {
+    if (!idoso || usuariosFavoritos.length === 0) {
       Alert.alert('Erro', 'Dados de cadastro não encontrados');
       return;
     }
@@ -175,7 +172,51 @@ const EmergenciaScreen = ({ navigation }) => {
       return;
     }
 
-    // Atualizar localização antes de enviar
+    if (usuariosFavoritos.length === 1) {
+      confirmarEnvioAlerta(usuariosFavoritos[0]);
+    } else {
+      // Primeiro alerta: escolher entre individual ou todos
+      Alert.alert(
+        'Enviar Alerta de Emergência',
+        `Você possui ${usuariosFavoritos.length} contatos cadastrados.\n\nComo deseja enviar o alerta?`,
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          },
+          {
+            text: 'Escolher Contato',
+            onPress: () => mostrarListaContatos()
+          },
+          {
+            text: 'Enviar para Todos',
+            onPress: () => enviarParaTodos(),
+            style: 'default'
+          }
+        ]
+      );
+    }
+  };
+
+  const mostrarListaContatos = () => {
+    const botoesContatos = usuariosFavoritos.map(contato => ({
+      text: `${contato.nome} - ${contato.telefone}`,
+      onPress: () => confirmarEnvioAlerta(contato)
+    }));
+
+    botoesContatos.push({
+      text: 'Voltar',
+      style: 'cancel'
+    });
+
+    Alert.alert(
+      'Selecione o Contato',
+      'Para qual contato deseja enviar o alerta?',
+      botoesContatos
+    );
+  };
+
+  const confirmarEnvioAlerta = async (usuarioFavorito) => {
     if (permissaoLocalizacao) {
       setLoadingMessage('Obtendo localização...');
       setLoading(true);
@@ -210,18 +251,257 @@ const EmergenciaScreen = ({ navigation }) => {
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Enviar SMS', 
-          onPress: () => enviarSMS(mensagem)
+          onPress: () => enviarSMS(mensagem, usuarioFavorito)
         },
         { 
           text: 'Enviar WhatsApp', 
-          onPress: () => enviarWhatsApp(mensagem),
+          onPress: () => enviarWhatsApp(mensagem, usuarioFavorito),
           style: 'default'
         }
       ]
     );
   };
 
-  const enviarSMS = async (mensagem) => {
+  const enviarParaTodos = async () => {
+    if (permissaoLocalizacao) {
+      setLoadingMessage('Obtendo localização...');
+      setLoading(true);
+      await obterLocalizacaoAtual();
+      setLoading(false);
+    }
+
+    const sintomasTexto = sintomasSelecionados
+      .map(s => `${s.icone} ${s.nome}`)
+      .join('\n');
+
+    const locInfo = formatarLocalizacao(localizacao);
+    
+    const mensagem = 
+      `🚨 *ALERTA DE EMERGÊNCIA* 🚨\n\n` +
+      `👴 Paciente: ${idoso.nome}\n` +
+      `📞 Telefone: ${idoso.telefone}\n\n` +
+      `*SINTOMAS RELATADOS:*\n${sintomasTexto}\n\n` +
+      `*LOCALIZAÇÃO:*\n${locInfo.texto}\n` +
+      `🗺️ Mapa: ${locInfo.url}\n\n` +
+      `⏰ Horário: ${new Date().toLocaleString('pt-BR')}\n\n` +
+      `_Mensagem enviada automaticamente pelo app Saúde do Idoso_`;
+
+    const nomeContatos = usuariosFavoritos.map(c => c.nome).join(', ');
+
+    Alert.alert(
+      'Enviar Alerta para Todos',
+      `Enviar alerta para ${usuariosFavoritos.length} contatos?\n\n` +
+      `${nomeContatos}\n\n` +
+      `${localizacao ? '✅ Localização incluída' : '⚠️ Sem localização'}\n\n` +
+      `⚠️ Você precisará enviar a mensagem individualmente para cada contato.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Enviar por WhatsApp', 
+          onPress: () => enviarSequencialWhatsApp(mensagem),
+          style: 'default'
+        },
+        { 
+          text: 'Enviar por SMS', 
+          onPress: () => enviarSequencialSMS(mensagem)
+        }
+      ]
+    );
+  };
+
+  const enviarSequencialWhatsApp = async (mensagem) => {
+    let contatoIndex = 0;
+
+    const enviarProximo = async () => {
+      if (contatoIndex >= usuariosFavoritos.length) {
+        Alert.alert(
+          'Envio Concluído',
+          `Alerta preparado para ${usuariosFavoritos.length} contato(s)!`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const contato = usuariosFavoritos[contatoIndex];
+      const telefone = contato.telefone.replace(/\D/g, '');
+      
+      let url;
+      if (Platform.OS === 'ios') {
+        url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+      } else {
+        url = `whatsapp://send?phone=55${telefone}&text=${encodeURIComponent(mensagem)}`;
+      }
+
+      try {
+        const supported = await Linking.canOpenURL(url);
+        
+        if (supported) {
+          await Linking.openURL(url);
+          
+          contatoIndex++;
+          
+          if (contatoIndex < usuariosFavoritos.length) {
+            setTimeout(() => {
+              Alert.alert(
+                'Próximo Contato',
+                `Após enviar para ${contato.nome}, clique em "Próximo" para continuar.\n\n` +
+                `Progresso: ${contatoIndex}/${usuariosFavoritos.length}\n\n` +
+                `Próximo: ${usuariosFavoritos[contatoIndex].nome}`,
+                [
+                  { 
+                    text: 'Cancelar Envios', 
+                    style: 'cancel',
+                    onPress: () => {
+                      Alert.alert('Cancelado', 'Envio de alertas cancelado.');
+                    }
+                  },
+                  { 
+                    text: 'Próximo', 
+                    onPress: enviarProximo 
+                  }
+                ]
+              );
+            }, 1000);
+          } else {
+            Alert.alert(
+              'Envio Concluído!',
+              `Alerta preparado para todos os ${usuariosFavoritos.length} contatos!`,
+              [{ text: 'OK' }]
+            );
+          }
+        } else {
+          if (Platform.OS === 'android') {
+            const fallbackUrl = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+            const fallbackSupported = await Linking.canOpenURL(fallbackUrl);
+            
+            if (fallbackSupported) {
+              await Linking.openURL(fallbackUrl);
+              contatoIndex++;
+              if (contatoIndex < usuariosFavoritos.length) {
+                setTimeout(() => {
+                  Alert.alert(
+                    'Próximo Contato',
+                    `Progresso: ${contatoIndex}/${usuariosFavoritos.length}\n\n` +
+                    `Próximo: ${usuariosFavoritos[contatoIndex].nome}`,
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Próximo', onPress: enviarProximo }
+                    ]
+                  );
+                }, 1000);
+              }
+              return;
+            }
+          }
+          
+          Alert.alert(
+            'WhatsApp não encontrado',
+            `Não foi possível abrir WhatsApp para ${contato.nome}. Deseja continuar com o próximo contato?`,
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { 
+                text: 'Próximo Contato', 
+                onPress: () => {
+                  contatoIndex++;
+                  enviarProximo();
+                }
+              }
+            ]
+          );
+        }
+      } catch (error) {
+        console.error('Erro ao enviar WhatsApp:', error);
+        Alert.alert(
+          'Erro',
+          `Erro ao enviar para ${contato.nome}. Deseja continuar?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { 
+              text: 'Próximo Contato', 
+              onPress: () => {
+                contatoIndex++;
+                enviarProximo();
+              }
+            }
+          ]
+        );
+      }
+    };
+
+    enviarProximo();
+  };
+
+  const enviarSequencialSMS = async (mensagem) => {
+    let contatoIndex = 0;
+
+    const enviarProximo = async () => {
+      if (contatoIndex >= usuariosFavoritos.length) {
+        Alert.alert(
+          'Envio Concluído',
+          `SMS preparado para ${usuariosFavoritos.length} contato(s)!`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const contato = usuariosFavoritos[contatoIndex];
+      const telefone = contato.telefone.replace(/\D/g, '');
+      const url = `sms:${telefone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(mensagem)}`;
+
+      try {
+        const supported = await Linking.canOpenURL(url);
+        
+        if (supported) {
+          await Linking.openURL(url);
+          
+          contatoIndex++;
+          
+          if (contatoIndex < usuariosFavoritos.length) {
+            setTimeout(() => {
+              Alert.alert(
+                'Próximo Contato',
+                `Após enviar para ${contato.nome}, clique em "Próximo".\n\n` +
+                `Progresso: ${contatoIndex}/${usuariosFavoritos.length}\n\n` +
+                `Próximo: ${usuariosFavoritos[contatoIndex].nome}`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Próximo', onPress: enviarProximo }
+                ]
+              );
+            }, 1000);
+          } else {
+            Alert.alert(
+              'Envio Concluído!',
+              `SMS preparado para todos os ${usuariosFavoritos.length} contatos!`,
+              [{ text: 'OK' }]
+            );
+          }
+        } else {
+          Alert.alert('Erro', 'Não foi possível abrir o aplicativo de SMS');
+        }
+      } catch (error) {
+        console.error('Erro ao enviar SMS:', error);
+        Alert.alert(
+          'Erro',
+          `Erro ao enviar para ${contato.nome}. Deseja continuar?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { 
+              text: 'Próximo Contato', 
+              onPress: () => {
+                contatoIndex++;
+                enviarProximo();
+              }
+            }
+          ]
+        );
+      }
+    };
+
+    enviarProximo();
+  };
+
+  const enviarSMS = async (mensagem, usuarioFavorito) => {
     try {
       setLoading(true);
       setLoadingMessage('Abrindo SMS...');
@@ -245,7 +525,7 @@ const EmergenciaScreen = ({ navigation }) => {
     }
   };
 
-  const enviarWhatsApp = async (mensagem) => {
+  const enviarWhatsApp = async (mensagem, usuarioFavorito) => {
     try {
       setLoading(true);
       setLoadingMessage('Abrindo WhatsApp...');
@@ -279,7 +559,7 @@ const EmergenciaScreen = ({ navigation }) => {
           'Deseja tentar enviar por SMS?',
           [
             { text: 'Não', style: 'cancel' },
-            { text: 'Sim', onPress: () => enviarSMS(mensagem) }
+            { text: 'Sim', onPress: () => enviarSMS(mensagem, usuarioFavorito) }
           ]
         );
       }
@@ -302,7 +582,7 @@ const EmergenciaScreen = ({ navigation }) => {
         'Não foi possível abrir o WhatsApp. Deseja tentar por SMS?',
         [
           { text: 'Não', style: 'cancel' },
-          { text: 'Sim', onPress: () => enviarSMS(mensagem) }
+          { text: 'Sim', onPress: () => enviarSMS(mensagem, usuarioFavorito) }
         ]
       );
     } finally {
@@ -314,7 +594,6 @@ const EmergenciaScreen = ({ navigation }) => {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         
-        {/* Header de emergência */}
         <View style={styles.emergencyHeader}>
           <Text style={styles.emergencyIcon}>🚨</Text>
           <Text style={styles.emergencyTitle}>Alerta de Emergência</Text>
@@ -323,7 +602,6 @@ const EmergenciaScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Info do paciente */}
         {idoso && (
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>👴 Paciente:</Text>
@@ -331,16 +609,21 @@ const EmergenciaScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Info do contato */}
-        {usuarioFavorito && (
+        {usuariosFavoritos.length > 0 && (
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>📞 Contato de Emergência:</Text>
-            <Text style={styles.infoText}>{usuarioFavorito.nome}</Text>
-            <Text style={styles.infoText}>{usuarioFavorito.telefone}</Text>
+            <Text style={styles.infoTitle}>
+              📞 Contatos de Emergência ({usuariosFavoritos.length}):
+            </Text>
+            {usuariosFavoritos.map((contato, index) => (
+              <View key={contato.id} style={styles.contatoItem}>
+                <Text style={styles.contatoTexto}>
+                  {index + 1}. {contato.nome} - {contato.telefone}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
-        {/* Card de Localização */}
         <View style={[styles.infoCard, styles.locationCard]}>
           <View style={styles.locationHeader}>
             <Text style={styles.infoTitle}>📍 Localização</Text>
@@ -399,7 +682,6 @@ const EmergenciaScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Lista de sintomas */}
         <View style={styles.sintomasContainer}>
           <Text style={styles.sintomasTitle}>Selecione os sintomas:</Text>
           
@@ -426,7 +708,6 @@ const EmergenciaScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Sintomas selecionados */}
         {sintomasSelecionados.length > 0 && (
           <View style={styles.selecionadosCard}>
             <Text style={styles.selecionadosTitle}>
@@ -446,14 +727,13 @@ const EmergenciaScreen = ({ navigation }) => {
 
       </ScrollView>
 
-      {/* Botão fixo no rodapé */}
       <View style={styles.footer}>
         <TouchableOpacity 
           style={[
             styles.btnEnviar,
             sintomasSelecionados.length === 0 && styles.btnEnviarDisabled
           ]}
-          onPress={enviarAlerta}
+          onPress={selecionarContatoParaEnvio}
           disabled={sintomasSelecionados.length === 0}
         >
           <Text style={styles.btnEnviarText}>
@@ -523,6 +803,13 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
+    color: '#2c3e50',
+  },
+  contatoItem: {
+    paddingVertical: 5,
+  },
+  contatoTexto: {
+    fontSize: 14,
     color: '#2c3e50',
   },
   locationInfo: {
