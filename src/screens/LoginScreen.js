@@ -8,10 +8,14 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ImageBackground,
+  Dimensions
 } from 'react-native';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { getAllIdoso, getAllUsuariofavorito } from '../database/asyncDB';
+
+const { width, height } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation }) => {
   const [cpf, setCpf] = useState('');
@@ -57,7 +61,6 @@ const LoginScreen = ({ navigation }) => {
       setLoadingMessage('Verificando cadastro...');
 
       const cpfNumeros = cpf.replace(/\D/g, '');
-
       // Buscar idoso pelo CPF
       const resultIdosos = await getAllIdoso();
       
@@ -70,7 +73,6 @@ const LoginScreen = ({ navigation }) => {
       );
 
       if (idosoEncontrado) {
-        // Verificar se tem contato de emergência cadastrado
         const resultFavoritos = await getAllUsuariofavorito();
         
         if (resultFavoritos.success && resultFavoritos.data.length > 0) {
@@ -118,235 +120,299 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  // Ir para tela de cadastro
   const irParaCadastro = () => {
     navigation.navigate('Cadastro');
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🏥</Text>
-          <Text style={styles.title}>Saúde do Idoso</Text>
-          <Text style={styles.subtitle}>Sistema de Monitoramento e Emergência</Text>
-        </View>
+    <View style={styles.container}>
+      <ImageBackground
+        source={require('../../assets/Gemini_Generated_Image_rp00r3rp00r3rp00.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
 
-        {/* Card de Login */}
-        <View style={styles.loginCard}>
-          <Text style={styles.loginTitle}>Acesse sua conta</Text>
-          <Text style={styles.loginSubtitle}>
-            Digite seu CPF para continuar
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>CPF</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChangeText={formatarCPF}
-              keyboardType="numeric"
-              maxLength={14}
-              autoFocus
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.btnLogin}
-            onPress={fazerLogin}
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.btnLoginText}>Entrar</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.topSpacer} />
 
-        {/* Divisor */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OU</Text>
-          <View style={styles.dividerLine} />
-        </View>
+            <View style={styles.loginContainer}>
+              <View style={styles.loginCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.emoji}>🏥</Text>
+                  <Text style={styles.title}>Saúde do Idoso</Text>
+                  <Text style={styles.subtitle}>Sistema de Monitoramento</Text>
+                </View>
 
-        {/* Card de Cadastro */}
-        <View style={styles.cadastroCard}>
-          <Text style={styles.cadastroIcon}>📝</Text>
-          <Text style={styles.cadastroTitle}>Primeiro Acesso?</Text>
-          <Text style={styles.cadastroSubtitle}>
-            Cadastre-se agora e tenha acesso aos recursos de emergência
-          </Text>
+                <View style={styles.formSection}>
+                  <Text style={styles.formTitle}>Acesse sua conta</Text>
+                  <Text style={styles.formSubtitle}>
+                    Digite seu CPF para continuar
+                  </Text>
 
-          <TouchableOpacity 
-            style={styles.btnCadastro}
-            onPress={irParaCadastro}
-          >
-            <Text style={styles.btnCadastroText}>Fazer Cadastro</Text>
-          </TouchableOpacity>
-        </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>CPF</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="000.000.000-00"
+                      placeholderTextColor="#95a5a6"
+                      value={cpf}
+                      onChangeText={formatarCPF}
+                      keyboardType="numeric"
+                      maxLength={14}
+                    />
+                  </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Desenvolvido para cuidado e segurança dos idosos
-          </Text>
-        </View>
+                  <TouchableOpacity 
+                    style={styles.btnLogin}
+                    onPress={fazerLogin}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnLoginText}>Entrar</Text>
+                  </TouchableOpacity>
+                </View>
 
-      </ScrollView>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OU</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <View style={styles.registerSection}>
+                  <Text style={styles.registerTitle}>Primeiro Acesso?</Text>
+                  <Text style={styles.registerSubtitle}>
+                    Cadastre-se para acessar os recursos
+                  </Text>
+
+                  <TouchableOpacity 
+                    style={styles.btnRegister}
+                    onPress={irParaCadastro}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnRegisterText}>📝 Fazer Cadastro</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.footerText}>
+                    Cuidado e segurança para idosos
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.bottomSpacer} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
 
       <LoadingOverlay visible={loading} message={loadingMessage} />
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#e8f5e9',
   },
-  scrollContainer: {
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(39, 174, 96, 0.30)',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    justifyContent: 'center',
   },
-  header: {
+  topSpacer: {
+    height: height * 0.05,
+  },
+  bottomSpacer: {
+    height: height * 0.05,
+  },
+  loginContainer: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  emoji: {
-    fontSize: 70,
-    marginBottom: 15,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    textAlign: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   loginCard: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 25,
-    marginBottom: 20,
+    width: Math.min(width * 0.85, 480),
+    backgroundColor: '#ffffff',
+    borderRadius: 28,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: 'hidden',
   },
-  loginTitle: {
+  cardHeader: {
+    backgroundColor: '#27ae60',
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  emoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 5,
+    color: '#ffffff',
+    marginBottom: 4,
+    textAlign: 'center',
   },
-  loginSubtitle: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+  },
+  formSection: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 20,
+    backgroundColor: '#ffffff',
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 6,
+  },
+  formSubtitle: {
+    fontSize: 13,
     color: '#7f8c8d',
     marginBottom: 20,
   },
-  inputContainer: {
+  inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#2c3e50',
     marginBottom: 8,
   },
   input: {
     backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    fontSize: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '500',
   },
   btnLogin: {
     backgroundColor: '#3498db',
-    padding: 16,
-    borderRadius: 10,
+    paddingVertical: 15,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#3498db',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
   btnLoginText: {
-    color: 'white',
-    fontSize: 18,
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
-  dividerContainer: {
+  divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    paddingHorizontal: 24,
+    marginVertical: 16,
+    backgroundColor: '#ffffff',
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: '#e0e0e0',
   },
   dividerText: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
+    fontSize: 12,
     color: '#95a5a6',
-    fontSize: 14,
     fontWeight: '600',
   },
-  cadastroCard: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 25,
+  registerSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 20,
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    borderLeftWidth: 5,
-    borderLeftColor: '#27ae60',
+    backgroundColor: '#ffffff',
   },
-  cadastroIcon: {
-    fontSize: 50,
-    marginBottom: 15,
-  },
-  cadastroTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 8,
-  },
-  cadastroSubtitle: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  btnCadastro: {
-    backgroundColor: '#27ae60',
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-    width: '100%',
-  },
-  btnCadastroText: {
-    color: 'white',
+  registerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 6,
   },
-  footer: {
+  registerSubtitle: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  btnRegister: {
+    backgroundColor: '#27ae60',
+    paddingVertical: 13,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
+    shadowColor: '#27ae60',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  btnRegisterText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 'bold',
+    letterSpacing: 0.3,
+  },
+  cardFooter: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#95a5a6',
     textAlign: 'center',
     fontStyle: 'italic',
